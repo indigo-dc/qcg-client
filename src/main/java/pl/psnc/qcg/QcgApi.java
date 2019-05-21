@@ -2,6 +2,7 @@ package pl.psnc.qcg;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.sun.jersey.api.client.Client;
 import com.sun.jersey.api.client.ClientResponse;
 import com.sun.jersey.api.client.WebResource;
@@ -29,8 +30,16 @@ public class QcgApi {
   }
 
   // start job
-  public QcgJob StartJob(String command) {
-    String job = "{ \"execution\":  { \"executable\": \"" + command + "\" } }";
+  public QcgJob StartJob(String command, boolean dontRemoveDirectory) {
+    ObjectMapper mapper = new ObjectMapper();
+    JsonNode jobNode = mapper.createObjectNode();
+    ObjectNode executionNode = ((ObjectNode)jobNode).putObject("execution");
+    executionNode.put("executable", command);
+    if (dontRemoveDirectory) {
+      ObjectNode directoryPolicyNode = executionNode.putObject("directory_policy");
+      directoryPolicyNode.put("remove", "NEVER");
+    }
+    String job = jobNode.toString();
     QcgPost("jobs/", job);
     if (status==201) return new QcgJob(toJson(output));
     System.err.println("Can't start job!");
@@ -134,7 +143,7 @@ public class QcgApi {
     System.out.println("resources:\n"+resources.toString());
 
     System.out.println("***Start job");
-    QcgJob newJob = StartJob("/usr/bin/date");
+    QcgJob newJob = StartJob("/usr/bin/date", true);
     System.out.println("new job:\n"+newJob.toString());
 
     System.out.println("***Get jobs");
